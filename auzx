@@ -45,6 +45,9 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 17)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
+-- ONLY ClipDescendants on the main frame. Clipping inner frames while tweening
+-- to 0,0 causes a Roblox engine deadlock that freezes the UI size.
+MainFrame.ClipsDescendants = true 
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner", MainFrame)
@@ -72,7 +75,6 @@ TitleBarLabel.TextColor3 = Color3.fromRGB(100, 100, 105)
 TitleBarLabel.Font = Enum.Font.SourceSansSemibold
 TitleBarLabel.TextXAlignment = Enum.TextXAlignment.Left
 TitleBarLabel.TextScaled = true
-TitleBarLabel.ClipsDescendants = true
 
 local MinimizeBtn = Instance.new("TextButton", TitleBar)
 MinimizeBtn.Size = UDim2.new(0, 32, 0, 32)
@@ -94,7 +96,7 @@ MinimizeBtn.MouseLeave:Connect(function()
 end)
 
 -- ==========================================
--- VISUAL RESIZE INDICATOR (INSIDE FRAME FOR LOOKS)
+-- VISUAL RESIZE INDICATOR (INSIDE FRAME)
 -- ==========================================
 local VisualGrip = Instance.new("Frame", MainFrame)
 VisualGrip.Size = UDim2.new(0, 12, 0, 12)
@@ -104,7 +106,7 @@ VisualGrip.ZIndex = 5
 
 for x = 0, 2 do
     for y = 0, 2 do
-        if (x + y) >= 2 then -- Creates a bottom-right triangle pattern
+        if (x + y) >= 2 then
             local dot = Instance.new("Frame", VisualGrip)
             dot.Size = UDim2.new(0, 2, 0, 2)
             dot.Position = UDim2.new(0, x * 5, 0, y * 5)
@@ -145,7 +147,6 @@ Sidebar.Name = "Sidebar"
 Sidebar.Size = UDim2.new(0, 160, 1, 0)
 Sidebar.BackgroundColor3 = Color3.fromRGB(12, 12, 14)
 Sidebar.BorderSizePixel = 0
-Sidebar.ClipsDescendants = true
 Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 12)
 
 local Logo = Instance.new("TextLabel", Sidebar)
@@ -178,7 +179,6 @@ TabContainer.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 65)
 TabContainer.ScrollBarImageTransparency = 0.3
 TabContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
 TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-TabContainer.ClipsDescendants = true
 TabContainer.BorderSizePixel = 0
 
 local TabLayout = Instance.new("UIListLayout", TabContainer)
@@ -215,7 +215,7 @@ local MainTabBtn = CreateTab("Main", "🏠", 1)
 local SettingsTabBtn = CreateTab("UI Settings", "⚙️", 2)
 
 -- ==========================================
--- CONTENT PANELS
+-- CONTENT PANELS (NO CLIPSDESCENDANTS HERE TO PREVENT FREEZE)
 -- ==========================================
 local ContentPanel = Instance.new("Frame", MainFrame)
 ContentPanel.Name = "ContentPanel"
@@ -224,7 +224,6 @@ ContentPanel.Position = UDim2.new(0, 170, 0, 40)
 ContentPanel.BackgroundColor3 = Color3.fromRGB(18, 18, 21)
 ContentPanel.BorderSizePixel = 0
 ContentPanel.Visible = true
-ContentPanel.ClipsDescendants = true
 Instance.new("UICorner", ContentPanel).CornerRadius = UDim.new(0, 10)
 
 local SettingsPanel = Instance.new("Frame", MainFrame)
@@ -234,7 +233,6 @@ SettingsPanel.Position = UDim2.new(0, 170, 0, 40)
 SettingsPanel.BackgroundColor3 = Color3.fromRGB(18, 18, 21)
 SettingsPanel.BorderSizePixel = 0
 SettingsPanel.Visible = false
-SettingsPanel.ClipsDescendants = true
 Instance.new("UICorner", SettingsPanel).CornerRadius = UDim.new(0, 10)
 
 local SettingsLayout = Instance.new("UIListLayout", SettingsPanel)
@@ -269,7 +267,6 @@ RowContainer.ScrollBarImageColor3 = Color3.fromRGB(60, 60, 65)
 RowContainer.ScrollBarImageTransparency = 0.3
 RowContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
 RowContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-RowContainer.ClipsDescendants = true
 RowContainer.BorderSizePixel = 0
 
 local RowLayout = Instance.new("UIListLayout", RowContainer)
@@ -296,7 +293,6 @@ local function CreateToggleRow(titleText, descText, defaultState, callback, orde
     TitleLbl.TextXAlignment = Enum.TextXAlignment.Left
     TitleLbl.TextScaled = true
     TitleLbl.TextWrapped = true
-    TitleLbl.ClipsDescendants = true
     
     local DescLbl = Instance.new("TextLabel", Row)
     DescLbl.Size = UDim2.new(1, -80, 0.5, 0)
@@ -307,7 +303,6 @@ local function CreateToggleRow(titleText, descText, defaultState, callback, orde
     DescLbl.TextXAlignment = Enum.TextXAlignment.Left
     DescLbl.TextScaled = true
     DescLbl.TextWrapped = true
-    DescLbl.ClipsDescendants = true
 
     local ToggleTrack = Instance.new("TextButton", Row)
     ToggleTrack.Size = UDim2.new(0, 44, 0, 24)
@@ -393,7 +388,6 @@ local AccentContent = Instance.new("Frame", SettingsPanel)
 AccentContent.Size = UDim2.new(1, 0, 0, 150)
 AccentContent.BackgroundTransparency = 1
 AccentContent.Visible = false
-AccentContent.ClipsDescendants = true
 AccentContent.LayoutOrder = 3
 
 local SwatchContainer = Instance.new("Frame", AccentContent)
@@ -579,20 +573,16 @@ local isOpen = true
 local savedSize = MainFrame.Size
 local isAnimating = false
 
--- CRITICAL FIX: ScrollingFrames with AutomaticCanvasSize fight against tweening to 0,0.
--- We must temporarily disable auto-sizing and crush the canvas before minimizing.
+-- CRITICAL FIX: Temporarily unparent layouts to completely bypass 
+-- the AutomaticCanvasSize constraint deadlock during the 0,0 tween.
 local function PreMinimize()
-    TabContainer.AutomaticCanvasSize = Enum.AutomaticSize.None
-    TabContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
-    
-    RowContainer.AutomaticCanvasSize = Enum.AutomaticSize.None
-    RowContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+    TabLayout.Parent = nil
+    RowLayout.Parent = nil
 end
 
--- Re-enable auto canvas sizing so scrolling works normally again after restoring
 local function PostRestore()
-    TabContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
-    RowContainer.AutomaticCanvasSize = Enum.AutomaticSize.Y
+    TabLayout.Parent = TabContainer
+    RowLayout.Parent = RowContainer
 end
 
 local function ToggleUI()
@@ -611,14 +601,14 @@ local function ToggleUI()
         local restoreTween = TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = savedSize})
         restoreTween:Play()
         restoreTween.Completed:Connect(function()
-            PostRestore() -- Turn scrolling back on safely
+            PostRestore() -- Re-attach layouts to restore scrolling
             isAnimating = false
         end)
     else
         savedSize = MainFrame.Size
         isResizing = false
         
-        PreMinimize() -- Break scroll lock before tweening
+        PreMinimize() -- Detach layouts to allow frame to reach 0,0
         
         local minimizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
         minimizeTween:Play()
