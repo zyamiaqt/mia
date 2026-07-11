@@ -1,21 +1,51 @@
--- Standalone Custom UI: zymiaqt (Tabs, Resizable, Dynamic Text, Toggleable, Color Picker)
+-- ==========================================
+-- SERVICES
+-- ==========================================
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local UserInputService = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
 
 -- ==========================================
 -- ANTI-CRASH / SELF-DESTRUCT CHECK
 -- ==========================================
 local existingUI = CoreGui:FindFirstChild("ZymiaqtUI")
-if existingUI then
-    existingUI:Destroy()
-end
+if existingUI then existingUI:Destroy() end
 
 local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "ZymiaqtUI"
 ScreenGui.Parent = CoreGui
 ScreenGui.ResetOnSpawn = false
 ScreenGui.IgnoreGuiInset = true
+
+-- ==========================================
+-- ESP CONFIGURATION
+-- ==========================================
+local ESP_Config = {
+    Box = false,
+    Fill = false,
+    Skeleton = false,
+    Health = false,
+    Chams = false,
+    Names = false,
+    TeamCheck = false,
+    
+    BoxColor = Color3.fromRGB(235, 185, 75),
+    FillColor = Color3.fromRGB(235, 185, 75),
+    SkeletonColor = Color3.fromRGB(235, 185, 75),
+    HealthColor = Color3.fromRGB(0, 255, 0),
+    ChamsColor = Color3.fromRGB(235, 185, 75),
+    NamesColor = Color3.fromRGB(235, 185, 75),
+    
+    FillTransparency = 0.5,
+    ChamsTransparency = 0.5
+}
+
+local Cache = {}
+local isDrawingSupported = pcall(function() return Drawing.new("Square") end)
 
 -- ==========================================
 -- THEME SYSTEM VARIABLES
@@ -45,9 +75,7 @@ MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 17)
 MainFrame.BorderSizePixel = 0
 MainFrame.Active = true
 MainFrame.Draggable = true
--- ONLY ClipDescendants on the main frame. Clipping inner frames while tweening
--- to 0,0 causes a Roblox engine deadlock that freezes the UI size.
-MainFrame.ClipsDescendants = true 
+MainFrame.ClipsDescendants = true
 MainFrame.Parent = ScreenGui
 
 local MainCorner = Instance.new("UICorner", MainFrame)
@@ -96,7 +124,7 @@ MinimizeBtn.MouseLeave:Connect(function()
 end)
 
 -- ==========================================
--- VISUAL RESIZE INDICATOR (INSIDE FRAME)
+-- VISUAL RESIZE INDICATOR
 -- ==========================================
 local VisualGrip = Instance.new("Frame", MainFrame)
 VisualGrip.Size = UDim2.new(0, 12, 0, 12)
@@ -117,7 +145,7 @@ for x = 0, 2 do
 end
 
 -- ==========================================
--- ACTUAL RESIZE GRIP (PARENTED TO SCREENGUI TO BYPASS UICORNER CLIPPING)
+-- ACTUAL RESIZE GRIP
 -- ==========================================
 local ResizeGrip = Instance.new("TextButton", ScreenGui)
 ResizeGrip.Name = "ResizeGrip"
@@ -140,7 +168,7 @@ MainFrame:GetPropertyChangedSignal("Size"):Connect(updateGripPosition)
 task.defer(updateGripPosition)
 
 -- ==========================================
--- SIDEBAR & TABS (SCROLLABLE)
+-- SIDEBAR & TABS
 -- ==========================================
 local Sidebar = Instance.new("Frame", MainFrame)
 Sidebar.Name = "Sidebar"
@@ -215,7 +243,7 @@ local MainTabBtn = CreateTab("Main", "🏠", 1)
 local SettingsTabBtn = CreateTab("UI Settings", "⚙️", 2)
 
 -- ==========================================
--- CONTENT PANELS (NO CLIPSDESCENDANTS HERE TO PREVENT FREEZE)
+-- CONTENT PANELS
 -- ==========================================
 local ContentPanel = Instance.new("Frame", MainFrame)
 ContentPanel.Name = "ContentPanel"
@@ -245,13 +273,13 @@ SettingsPadding.PaddingRight = UDim.new(0, 20)
 SettingsPadding.PaddingTop = UDim.new(0, 10)
 
 -- ==========================================
--- MAIN TAB CONTENT (SCROLLABLE)
+-- MAIN TAB CONTENT
 -- ==========================================
 local SectionHeader = Instance.new("TextLabel", ContentPanel)
 SectionHeader.Size = UDim2.new(1, -30, 0, 35)
 SectionHeader.Position = UDim2.new(0, 20, 0, 10)
 SectionHeader.BackgroundTransparency = 1
-SectionHeader.Text = "☉  MAIN"
+SectionHeader.Text = "☉  VISUALS"
 SectionHeader.TextColor3 = currentAccent
 SectionHeader.Font = Enum.Font.SourceSansBold
 SectionHeader.TextXAlignment = Enum.TextXAlignment.Left
@@ -340,13 +368,14 @@ local function CreateToggleRow(titleText, descText, defaultState, callback, orde
     UpdateState(true)
 end
 
-CreateToggleRow("Box", "well, box it is!", true, function(e) print(e) end, 1)
-CreateToggleRow("Box Fill", "boxes!", false, function(e) print(e) end, 2)
-CreateToggleRow("Skeleton", "skelly scary", false, function(e) print(e) end, 3)
-CreateToggleRow("Health", "gotta watch out..", false, function(e) print(e) end, 4)
-CreateToggleRow("Chams", "well, it charms you.", false, function(e) print(e) end, 5)
-CreateToggleRow("Names & Distance", "everyones favorite!", false, function(e) print(e) end, 6)
-CreateToggleRow("Team Check", "no friendly fire !!!", false, function(e) print(e) end, 7)
+-- LINKED TO ESP CONFIG
+CreateToggleRow("Box", "Enemy bounding box.", false, function(e) ESP_Config.Box = e end, 1)
+CreateToggleRow("Box Fill", "Filled bounding box.", false, function(e) ESP_Config.Fill = e end, 2)
+CreateToggleRow("Skeleton", "Character bone lines.", false, function(e) ESP_Config.Skeleton = e end, 3)
+CreateToggleRow("Health", "HP bar indicator.", false, function(e) ESP_Config.Health = e end, 4)
+CreateToggleRow("Chams", "3D highlight glow.", false, function(e) ESP_Config.Chams = e end, 5)
+CreateToggleRow("Names & Distance", "Player info tags.", false, function(e) ESP_Config.Names = e end, 6)
+CreateToggleRow("Team Check", "Hides friendly players.", false, function(e) ESP_Config.TeamCheck = e end, 7)
 
 -- ==========================================
 -- SETTINGS TAB CONTENT
@@ -364,7 +393,7 @@ SettingsHeader.LayoutOrder = 1
 local AccentHeader = Instance.new("TextButton", SettingsPanel)
 AccentHeader.Size = UDim2.new(1, 0, 0, 35)
 AccentHeader.BackgroundTransparency = 1
-AccentHeader.Text = "▶  Accent Theme"
+AccentHeader.Text = "▶  Accent Theme (Applies to ESP)"
 AccentHeader.TextColor3 = Color3.fromRGB(200, 200, 205)
 AccentHeader.Font = Enum.Font.SourceSansSemibold
 AccentHeader.TextXAlignment = Enum.TextXAlignment.Left
@@ -374,8 +403,7 @@ AccentHeader.AutoButtonColor = false
 Instance.new("UICorner", AccentHeader).CornerRadius = UDim.new(0, 6)
 
 local hoverTweenIn = TweenService:Create(AccentHeader, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-    BackgroundColor3 = Color3.fromRGB(40, 40, 45),
-    BackgroundTransparency = 0.2
+    BackgroundColor3 = Color3.fromRGB(40, 40, 45), BackgroundTransparency = 0.2
 })
 local hoverTweenOut = TweenService:Create(AccentHeader, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
     BackgroundTransparency = 1
@@ -417,7 +445,7 @@ local isAccentOpen = false
 AccentHeader.MouseButton1Click:Connect(function()
     isAccentOpen = not isAccentOpen
     AccentContent.Visible = isAccentOpen
-    AccentHeader.Text = isAccentOpen and "▼  Accent Theme" or "▶  Accent Theme"
+    AccentHeader.Text = isAccentOpen and "▼  Accent Theme (Applies to ESP)" or "▶  Accent Theme (Applies to ESP)"
 end)
 
 -- ==========================================
@@ -472,6 +500,13 @@ local function UpdateAccentColor(newColor)
             end
         end
     end
+    
+    -- SYNC ESP COLORS WITH UI THEME
+    ESP_Config.BoxColor = newColor
+    ESP_Config.FillColor = newColor
+    ESP_Config.SkeletonColor = newColor
+    ESP_Config.ChamsColor = newColor
+    ESP_Config.NamesColor = newColor
 end
 
 for i, data in ipairs(colorOptions) do
@@ -500,7 +535,6 @@ local activeTabName = "Main"
 
 local function SwitchTab(tabName)
     activeTabName = tabName
-    
     for name, data in pairs(tabs) do
         if name == tabName then
             data.Button.BackgroundColor3 = getBgTint(currentAccent)
@@ -551,10 +585,8 @@ UserInputService.InputChanged:Connect(function(input)
         if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
             local deltaX = input.Position.X - resizeStartPos.X
             local deltaY = input.Position.Y - resizeStartPos.Y
-            
             local newWidth = math.clamp(resizeStartSize.X.Offset + deltaX, MIN_WIDTH, MAX_WIDTH)
             local newHeight = math.clamp(resizeStartSize.Y.Offset + deltaY, MIN_HEIGHT, MAX_HEIGHT)
-            
             MainFrame.Size = UDim2.new(0, newWidth, 0, newHeight)
         end
     end
@@ -567,14 +599,12 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- ==========================================
--- TOGGLE LOGIC (INSERT KEY + MINIMIZE BUTTON)
+-- TOGGLE LOGIC (MINIMIZE FIX)
 -- ==========================================
 local isOpen = true
 local savedSize = MainFrame.Size
 local isAnimating = false
 
--- CRITICAL FIX: Temporarily unparent layouts to completely bypass 
--- the AutomaticCanvasSize constraint deadlock during the 0,0 tween.
 local function PreMinimize()
     TabLayout.Parent = nil
     RowLayout.Parent = nil
@@ -594,21 +624,19 @@ local function ToggleUI()
         MainFrame.Visible = true
         ResizeGrip.Visible = true
         MainFrame.Size = UDim2.new(0, 0, 0, 0)
-        
         TabContainer.CanvasPosition = Vector2.new(0, 0)
         RowContainer.CanvasPosition = Vector2.new(0, 0)
         
         local restoreTween = TweenService:Create(MainFrame, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size = savedSize})
         restoreTween:Play()
         restoreTween.Completed:Connect(function()
-            PostRestore() -- Re-attach layouts to restore scrolling
+            PostRestore()
             isAnimating = false
         end)
     else
         savedSize = MainFrame.Size
         isResizing = false
-        
-        PreMinimize() -- Detach layouts to allow frame to reach 0,0
+        PreMinimize()
         
         local minimizeTween = TweenService:Create(MainFrame, TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {Size = UDim2.new(0, 0, 0, 0)})
         minimizeTween:Play()
@@ -623,9 +651,200 @@ local function ToggleUI()
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if input.KeyCode == Enum.KeyCode.Insert then
-        ToggleUI()
-    end
+    if input.KeyCode == Enum.KeyCode.Insert then ToggleUI() end
 end)
 
 MinimizeBtn.MouseButton1Click:Connect(ToggleUI)
+
+
+-- ===========================================================================
+-- ESP BACKEND LOGIC (FULLY INTEGRATED & OPTIMIZED)
+-- ===========================================================================
+if isDrawingSupported then
+    local function CreateDrawing(class, properties)
+        local draw = Drawing.new(class)
+        for prop, val in pairs(properties) do
+            pcall(function() draw[prop] = val end)
+        end
+        return draw
+    end
+
+    local function ClearESP(player)
+        if Cache[player] then
+            if Cache[player].Drawings then
+                for _, obj in pairs(Cache[player].Drawings) do
+                    pcall(function() obj:Remove() end)
+                end
+            end
+            if Cache[player].Highlight then
+                pcall(function() Cache[player].Highlight:Destroy() end)
+            end
+            Cache[player] = nil
+        end
+    end
+
+    local function SetupESP(player)
+        if player == LocalPlayer then return end
+        Cache[player] = {
+            Drawings = {
+                Box = CreateDrawing("Square", {Thickness = 1.5, Filled = false, Visible = false, ZIndex = 2}),
+                BoxOutline = CreateDrawing("Square", {Thickness = 2.5, Filled = false, Visible = false, Color = Color3.new(0,0,0), ZIndex = 1}),
+                BoxFill = CreateDrawing("Square", {Filled = true, Visible = false, ZIndex = 0}),
+                HealthBar = CreateDrawing("Square", {Filled = true, Visible = false, Color = ESP_Config.HealthColor, ZIndex = 2}),
+                HealthBg = CreateDrawing("Square", {Filled = true, Visible = false, Color = Color3.new(0,0,0), ZIndex = 1}),
+                
+                HeadTorso = CreateDrawing("Line", {Thickness = 1.5, Visible = false}),
+                TorsoLeftArm = CreateDrawing("Line", {Thickness = 1.5, Visible = false}),
+                TorsoRightArm = CreateDrawing("Line", {Thickness = 1.5, Visible = false}),
+                TorsoLeftLeg = CreateDrawing("Line", {Thickness = 1.5, Visible = false}),
+                TorsoRightLeg = CreateDrawing("Line", {Thickness = 1.5, Visible = false}),
+                
+                NameTag = CreateDrawing("Text", {Size = 13, Center = true, Outline = true, Visible = false, Color = ESP_Config.NamesColor, ZIndex = 3})
+            },
+            Highlight = nil
+        }
+    end
+
+    RunService.RenderStepped:Connect(function()
+        local localChar = LocalPlayer.Character
+        local localHrp = localChar and localChar:FindFirstChild("HumanoidRootPart")
+        local localTeam = localChar and LocalPlayer.Team
+
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player == LocalPlayer then continue end
+            if not Cache[player] then SetupESP(player) end
+            
+            local data = Cache[player]
+            local char = player.Character
+            local hrp = char and char:FindFirstChild("HumanoidRootPart")
+            local hum = char and char:FindFirstChildOfClass("Humanoid")
+            
+            if hrp and hum and hum.Health > 0 then
+                local pos, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+                
+                -- Fixed Team Check to actually hide teammates
+                local isTeammate = ESP_Config.TeamCheck and player.Team and localTeam and player.Team == localTeam
+                
+                if not isTeammate and onScreen then
+                    local head = char:FindFirstChild("Head")
+                    local headPos = head and Camera:WorldToViewportPoint(head.Position + Vector3.new(0, 0.5, 0)) or Camera:WorldToViewportPoint(hrp.Position + Vector3.new(0, 2, 0))
+                    local legPos = Camera:WorldToViewportPoint(hrp.Position - Vector3.new(0, 3, 0))
+                    
+                    local height = math.abs(headPos.Y - legPos.Y)
+                    local width = height * 0.6
+                    local tlX = pos.X - (width / 2)
+                    local tlY = headPos.Y
+
+                    if ESP_Config.Box then
+                        data.Drawings.Box.Size = Vector2.new(width, height)
+                        data.Drawings.Box.Position = Vector2.new(tlX, tlY)
+                        data.Drawings.Box.Color = ESP_Config.BoxColor
+                        data.Drawings.Box.Visible = true
+                        
+                        data.Drawings.BoxOutline.Size = data.Drawings.Box.Size
+                        data.Drawings.BoxOutline.Position = data.Drawings.Box.Position
+                        data.Drawings.BoxOutline.Visible = true
+                    else
+                        data.Drawings.Box.Visible = false
+                        data.Drawings.BoxOutline.Visible = false
+                    end
+                    
+                    if ESP_Config.Fill then
+                        data.Drawings.BoxFill.Size = Vector2.new(width, height)
+                        data.Drawings.BoxFill.Position = Vector2.new(tlX, tlY)
+                        data.Drawings.BoxFill.Color = ESP_Config.FillColor
+                        data.Drawings.BoxFill.Transparency = ESP_Config.FillTransparency
+                        data.Drawings.BoxFill.Visible = true
+                    else
+                        data.Drawings.BoxFill.Visible = false
+                    end
+                    
+                    if ESP_Config.Health then
+                        local healthPercent = math.clamp(hum.Health / hum.MaxHealth, 0, 1)
+                        local barHeight = height * healthPercent
+                        
+                        data.Drawings.HealthBg.Size = Vector2.new(3, height)
+                        data.Drawings.HealthBg.Position = Vector2.new(tlX - 6, tlY)
+                        data.Drawings.HealthBg.Visible = true
+                        
+                        data.Drawings.HealthBar.Size = Vector2.new(2, barHeight)
+                        data.Drawings.HealthBar.Position = Vector2.new(tlX - 5, tlY + (height - barHeight))
+                        data.Drawings.HealthBar.Color = ESP_Config.HealthColor
+                        data.Drawings.HealthBar.Visible = true
+                    else
+                        data.Drawings.HealthBar.Visible = false
+                        data.Drawings.HealthBg.Visible = false
+                    end
+                    
+                    if ESP_Config.Names then
+                        local distance = localHrp and math.round((localHrp.Position - hrp.Position).Magnitude) or 0
+                        data.Drawings.NameTag.Text = string.format("%s [%d]", player.DisplayName, distance)
+                        data.Drawings.NameTag.Position = Vector2.new(pos.X, tlY - 15)
+                        data.Drawings.NameTag.Color = ESP_Config.NamesColor
+                        data.Drawings.NameTag.Visible = true
+                    else
+                        data.Drawings.NameTag.Visible = false
+                    end
+                    
+                    if ESP_Config.Skeleton then
+                        local function DrawBone(line, p1, p2)
+                            if p1 and p2 then
+                                local w2p1, os1 = Camera:WorldToViewportPoint(p1.Position)
+                                local w2p2, os2 = Camera:WorldToViewportPoint(p2.Position)
+                                if os1 and os2 then
+                                    line.From = Vector2.new(w2p1.X, w2p1.Y)
+                                    line.To = Vector2.new(w2p2.X, w2p2.Y)
+                                    line.Color = ESP_Config.SkeletonColor
+                                    line.Visible = true
+                                    return
+                                end
+                            end
+                            line.Visible = false
+                        end
+                        
+                        local upperTorso = char:FindFirstChild("UpperTorso") or char:FindFirstChild("Torso")
+                        local leftArm = char:FindFirstChild("LeftUpperArm") or char:FindFirstChild("Left Arm")
+                        local rightArm = char:FindFirstChild("RightUpperArm") or char:FindFirstChild("Right Arm")
+                        local leftLeg = char:FindFirstChild("LeftUpperLeg") or char:FindFirstChild("Left Leg")
+                        local rightLeg = char:FindFirstChild("RightUpperLeg") or char:FindFirstChild("Right Leg")
+                        
+                        DrawBone(data.Drawings.HeadTorso, head, upperTorso)
+                        DrawBone(data.Drawings.TorsoLeftArm, upperTorso, leftArm)
+                        DrawBone(data.Drawings.TorsoRightArm, upperTorso, rightArm)
+                        DrawBone(data.Drawings.TorsoLeftLeg, upperTorso, leftLeg)
+                        DrawBone(data.Drawings.TorsoRightLeg, upperTorso, rightLeg)
+                    else
+                        for _, bone in pairs({data.Drawings.HeadTorso, data.Drawings.TorsoLeftArm, data.Drawings.TorsoRightArm, data.Drawings.TorsoLeftLeg, data.Drawings.TorsoRightLeg}) do
+                            bone.Visible = false
+                        end
+                    end
+                    
+                    if ESP_Config.Chams then
+                        -- Fixed highlight breaking on respawn
+                        if not data.Highlight or not data.Highlight.Parent then
+                            local hl = Instance.new("Highlight")
+                            hl.Adornee = char
+                            hl.Parent = char
+                            data.Highlight = hl
+                        end
+                        data.Highlight.Adornee = char
+                        data.Highlight.FillColor = ESP_Config.ChamsColor
+                        data.Highlight.FillTransparency = ESP_Config.ChamsTransparency
+                        data.Highlight.OutlineTransparency = 1
+                        data.Highlight.Enabled = true
+                    elseif data.Highlight then
+                        data.Highlight.Enabled = false
+                    end
+                else
+                    for _, obj in pairs(data.Drawings) do obj.Visible = false end
+                    if data.Highlight then data.Highlight.Enabled = false end
+                end
+            else
+                for _, obj in pairs(data.Drawings) do obj.Visible = false end
+                if data.Highlight then data.Highlight.Enabled = false end
+            end
+        end
+    end)
+
+    Players.PlayerRemoving:Connect(ClearESP)
+end
