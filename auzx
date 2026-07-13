@@ -23,12 +23,12 @@ local ESP_Config = {
     Chams = false,
     Names = false,
     TeamCheck = false,
-    BoxColor = Color3.fromRGB(235, 185, 75),
-    FillColor = Color3.fromRGB(235, 185, 75),
-    SkeletonColor = Color3.fromRGB(235, 185, 75),
+    BoxColor = Color3.fromRGB(255, 50, 50),
+    FillColor = Color3.fromRGB(255, 50, 50),
+    SkeletonColor = Color3.fromRGB(255, 255, 255),
     HealthColor = Color3.fromRGB(0, 255, 0),
-    ChamsColor = Color3.fromRGB(235, 185, 75),
-    NamesColor = Color3.fromRGB(235, 185, 75),
+    ChamsColor = Color3.fromRGB(255, 0, 255),
+    NamesColor = Color3.fromRGB(255, 255, 255),
     FillTransparency = 0.5,
     ChamsTransparency = 0.5
 }
@@ -337,7 +337,7 @@ CreateToggleRow("Box Fill", "Filled bounding box.", false, function(e) ESP_Confi
 CreateToggleRow("Skeleton", "Character bone lines.", false, function(e) ESP_Config.Skeleton = e end, 3)
 CreateToggleRow("Health", "HP bar indicator.", false, function(e) ESP_Config.Health = e end, 4)
 CreateToggleRow("Chams", "3D highlight glow.", false, function(e) ESP_Config.Chams = e end, 5)
-CreateToggleRow("Names & Distance", "Player info tags.", false, function(e) ESP_Config.Names = e end, 6)
+CreateToggleRow("Names & Distance", "Auto team color & dist.", false, function(e) ESP_Config.Names = e end, 6)
 CreateToggleRow("Team Check", "Hides friendly players.", false, function(e) ESP_Config.TeamCheck = e end, 7)
 
 local SettingsHeader = Instance.new("TextLabel", SettingsPanel)
@@ -353,7 +353,7 @@ SettingsHeader.LayoutOrder = 1
 local AccentHeader = Instance.new("TextButton", SettingsPanel)
 AccentHeader.Size = UDim2.new(1, 0, 0, 35)
 AccentHeader.BackgroundTransparency = 1
-AccentHeader.Text = "▶  Accent Theme (Applies to ESP)"
+AccentHeader.Text = "▶  Accent Theme"
 AccentHeader.TextColor3 = Color3.fromRGB(200, 200, 205)
 AccentHeader.Font = Enum.Font.SourceSansSemibold
 AccentHeader.TextXAlignment = Enum.TextXAlignment.Left
@@ -405,7 +405,7 @@ local isAccentOpen = false
 AccentHeader.MouseButton1Click:Connect(function()
     isAccentOpen = not isAccentOpen
     AccentContent.Visible = isAccentOpen
-    AccentHeader.Text = isAccentOpen and "▼  Accent Theme (Applies to ESP)" or "▶  Accent Theme (Applies to ESP)"
+    AccentHeader.Text = isAccentOpen and "▼  Accent Theme" or "▶  Accent Theme"
 end)
 
 local function UpdateAccentColor(newColor)
@@ -457,12 +457,6 @@ local function UpdateAccentColor(newColor)
             end
         end
     end
-    
-    ESP_Config.BoxColor = newColor
-    ESP_Config.FillColor = newColor
-    ESP_Config.SkeletonColor = newColor
-    ESP_Config.ChamsColor = newColor
-    ESP_Config.NamesColor = newColor
 end
 
 for i, data in ipairs(colorOptions) do
@@ -721,7 +715,7 @@ if isDrawingSupported then
                         local distance = localHrp and math.round((localHrp.Position - hrp.Position).Magnitude) or 0
                         data.Drawings.NameTag.Text = string.format("%s [%d]", player.DisplayName, distance)
                         data.Drawings.NameTag.Position = Vector2.new(pos.X, tlY - 15)
-                        data.Drawings.NameTag.Color = ESP_Config.NamesColor
+                        data.Drawings.NameTag.Color = player.TeamColor.Color
                         data.Drawings.NameTag.Visible = true
                     else
                         data.Drawings.NameTag.Visible = false
